@@ -96,14 +96,19 @@ public class Application {
      * @return A Boolean flag indicating if it´s prime or not
      */
     private static boolean isPrime(Long n, Boolean accountable) {
+        //Accountable
         if(accountable) counter++;
-        if (n == 1) return false;
+        //Simple checks
+        if(n == 1) return false;
+        else if(n == 2) return true;
         if (n % 2 == 0) return false;
-        //if not, then just check the odds
+
+        //If not, check up to sqrt on n
         for(int i = 3; i*i <= n; i += 2) {
             if(n % i==0)
                 return false;
         }
+
         return true;
     }
 

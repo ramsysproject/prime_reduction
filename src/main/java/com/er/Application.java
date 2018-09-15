@@ -1,17 +1,30 @@
 package com.er;
 
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Application {
 
     private static Set<Long> primeNumbers = new TreeSet<>();
+    private static Set<Long> syncPrimeNumbers = Collections.synchronizedSet(primeNumbers);
+    private static Set<Long> unsafePrimeNumbers = new TreeSet();
     private static Integer counter = 0;
+    private static ExecutorService primeSearchExecutor;
     private static final String NUMBER_LENGTH_ERROR = String.format("The given input is higher than the maximum supported value - %s", Math.pow(10,9));
     private static final String NUMBER_RANGE_ERROR = "The given input must be greater than 0";
     private static final String RESULT_FORMAT = "%d %d";
 
     public static void main(String[] args) {
-        primeNumbers.add(2L);
+
+        primeSearchExecutor = Executors.newFixedThreadPool(10);
+        primeSearchExecutor.execute(() -> {
+            for(long i = 3; i < 10000000000L; i++) {
+                if(isPrime(i)) syncPrimeNumbers.add(i);
+            }
+        });
+
+        syncPrimeNumbers.add(2L);
         Scanner scanner = new Scanner(System.in);
         while(scanner.hasNext()) {
             Long input = scanner.nextLong();
@@ -32,6 +45,8 @@ public class Application {
                 }
             }
         }
+
+        primeSearchExecutor.shutdown();
     }
 
     /**
@@ -47,23 +62,28 @@ public class Application {
 
         while(input > 1) {
             Long inputFinal = input;
-            Optional<Long> primeFactor = primeNumbers.stream().filter(number -> inputFinal % number == 0).findFirst();
+            updateUnsafePrimeNumbers(input);
+            Optional<Long> primeFactor = unsafePrimeNumbers.stream().filter(number -> inputFinal % number == 0).findFirst();
             if(primeFactor.isPresent()) {
                 primeFactors.add(primeFactor.get());
                 input = input / primeFactor.get();
-            } else searchMorePrimeNumbers();
+            } else {
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
         }
 
         return primeFactors;
     }
 
-    /**
-     * This method is executed when we need to obtain more prime numbers to evaluate inputs
-     */
-    private static void searchMorePrimeNumbers() {
-        Long lastPrimeNumber = getLastPrimeNumber();
-        for(long i = lastPrimeNumber + 1; i < lastPrimeNumber * 2; i++) {
-            if(isPrime(i)) primeNumbers.add(i);
+    private static void updateUnsafePrimeNumbers(Long input) {
+        Long lastNumber = getLastFromUnsafePrimeNumber();
+        if(input > lastNumber){
+            List values = Arrays.asList(syncPrimeNumbers.toArray());
+            unsafePrimeNumbers.addAll(values);
         }
     }
 
@@ -71,9 +91,12 @@ public class Application {
      * This method retrieves the last prime number from the Collection
      * @return The last prime number in the Collection
      */
-    private static Long getLastPrimeNumber() {
-        Object[] primeNumbersArray = primeNumbers.toArray();
-        return (Long) primeNumbersArray[primeNumbersArray.length-1];
+    private static Long getLastFromUnsafePrimeNumber() {
+        Object[] primeNumbersArray = unsafePrimeNumbers.toArray();
+        if(primeNumbersArray.length == 0){
+            return 0L;
+        }
+        else return (Long) primeNumbersArray[primeNumbersArray.length-1];
     }
 
     /**
@@ -114,6 +137,9 @@ public class Application {
     private static void runValidations(Long input) {
         if(input > 1000000000) throw new IllegalArgumentException(NUMBER_LENGTH_ERROR);
         if(input < 0) throw new IllegalArgumentException(NUMBER_RANGE_ERROR);
-        if(input == 4) System.exit(0);
+        if(input == 4) {
+            primeSearchExecutor.shutdown();
+            System.exit(0);
+        }
     }
 }

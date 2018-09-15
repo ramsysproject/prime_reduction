@@ -65,7 +65,6 @@ public class Application {
         for(long i = lastPrimeNumber + 1; i < lastPrimeNumber * 2; i++) {
             if(isPrime(i)) primeNumbers.add(i);
         }
-        System.err.println(primeNumbers);
     }
 
     /**
